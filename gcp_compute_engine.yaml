@@ -1,0 +1,58 @@
+- name: Create a VM instance
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    project: 'internship-166-375809'
+    auth_kind: serviceaccount
+    service_account_file: 'ansible-service-account-key.json'
+    zone: "us-central1-a"
+    region: "us-central1"
+    scopes:
+      - https://www.googleapis.com/auth/compute
+
+  tasks:
+
+    - name: Create a disk
+      gcp_compute_disk:
+        state: present
+        name: 'vm-instance-disk'
+        size_gb: 50
+        source_image: 'projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts'
+        zone: "{{ zone }}"
+        project: "{{ project }}"
+        auth_kind: "{{ auth_kind }}"
+        service_account_file: "{{ service_account_file }}"
+        scopes: "{{ scopes }}"
+      register: disk
+    - name: Create an address
+      gcp_compute_address:
+        state: present
+        name: 'address-instance'
+        region: "{{ region }}"
+        project: "{{ project }}"
+        auth_kind: "{{ auth_kind }}"
+        scopes: "{{ scopes }}"
+        service_account_file: "{{ service_account_file }}"
+      register: address
+    - name: Create an instance
+      gcp_compute_instance:
+        state: present
+        name: 'ansible-vm'
+        machine_type: 'f1-micro'
+        disks:
+          - auto_delete: true
+            boot: true
+            source: "{{ disk }}"
+        network_interfaces:
+          - network: null
+            access_configs:
+              - name: 'External NAT'
+                nat_ip: "{{ address }}"
+                type: 'ONE_TO_ONE_NAT'
+        zone: "{{ zone }}"
+        project: "{{ project }}"
+        auth_kind: "{{ auth_kind }}"
+        service_account_file: "{{ service_account_file }}"
+        scopes: "{{ scopes }}"
+      register: instance
